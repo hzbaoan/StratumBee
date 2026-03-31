@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  stratumbee:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./config:/opt/stratumbee/config
+      - ./var:/opt/stratumbee/var
+    environment:
+      RUST_LOG: info
+      STRATUMBEE_RPC_USER: bitcoinrpc
+      STRATUMBEE_RPC_PASS: change-me

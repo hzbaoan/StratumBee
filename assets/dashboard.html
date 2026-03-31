@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StratumBee Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b1117;
+      --panel: #121a23;
+      --panel-soft: #172230;
+      --line: rgba(137, 159, 186, 0.18);
+      --text: #e6edf3;
+      --muted: #8b9db2;
+      --accent: #1db954;
+      --accent-2: #f59e0b;
+      --bad: #ef4444;
+      --shadow: 0 22px 48px rgba(0, 0, 0, 0.32);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(29, 185, 84, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 24%),
+        linear-gradient(180deg, #091018 0%, #0b1117 100%);
+    }
+    .shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 18px 36px;
+    }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: -0.05em;
+    }
+    .lede {
+      margin: 10px 0 0;
+      max-width: 780px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .pill {
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(18, 26, 35, 0.9);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(18, 26, 35, 0.9);
+      white-space: nowrap;
+    }
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(29, 185, 84, 0.85);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .panel-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(20, 28, 38, 0.98), rgba(12, 18, 25, 0.98));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 0.82rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .big {
+      font-size: clamp(1.5rem, 3vw, 2.25rem);
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .sub {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.93rem;
+    }
+    th, td {
+      padding: 11px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    td {
+      color: var(--text);
+    }
+    .mono {
+      font-family: "IBM Plex Mono", "Cascadia Code", monospace;
+      word-break: break-all;
+    }
+    .ok { color: var(--accent); }
+    .warn { color: var(--accent-2); }
+    .bad { color: var(--bad); }
+    .foot {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+    @media (max-width: 1080px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .shell { padding: 18px 12px 28px; }
+      .hero { flex-direction: column; }
+      .grid { grid-template-columns: 1fr; }
+      th, td { padding: 10px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <h1>StratumBee</h1>
+        <p class="lede">Solo bitcoind template collector, Stratum V1 broadcaster, local share validator, block submitter, read-only monitor. Reward payout is fixed by <code>stratumbee.toml</code>; miners are identified by firmware UA instead of Bitcoin address.</p>
+        <div class="hero-meta">
+          <span class="pill" id="gateway-version">StratumBee</span>
+          <span class="pill" id="uptime">uptime</span>
+          <span class="pill" id="prevhash">prevhash</span>
+        </div>
+      </div>
+      <div class="status">
+        <span class="dot"></span>
+        <span id="template-status">template waiting</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Total Hashrate</h2>
+        <div class="big" id="val-hashrate">-</div>
+        <div class="sub">Aggregate accepted-share estimate</div>
+      </div>
+      <div class="card">
+        <h2>Active Miners</h2>
+        <div class="big" id="val-workers">-</div>
+        <div class="sub">Authorized sessions visible in dashboard</div>
+      </div>
+      <div class="card">
+        <h2>Network Difficulty</h2>
+        <div class="big" id="val-netdiff">-</div>
+        <div class="sub">Current template difficulty</div>
+      </div>
+      <div class="card">
+        <h2>Current Height</h2>
+        <div class="big" id="val-height">-</div>
+        <div class="sub" id="height-sub">Waiting for template</div>
+      </div>
+      <div class="card">
+        <h2>Block Reward</h2>
+        <div class="big" id="val-reward">-</div>
+        <div class="sub" id="reward-sub">Subsidy + fees</div>
+      </div>
+      <div class="card">
+        <h2>Network Hash Rate</h2>
+        <div class="big" id="val-network-hashrate">-</div>
+        <div class="sub" id="network-hashrate-sub">Reported by bitcoind</div>
+      </div>
+      <div class="card">
+        <h2>Blocks</h2>
+        <div class="big" id="val-blocks">-</div>
+        <div class="sub" id="blocks-sub">Submission health</div>
+      </div>
+      <div class="card">
+        <h2>Best Diff</h2>
+        <div class="big" id="val-best-diff">-</div>
+        <div class="sub" id="best-diff-sub">Highest accepted best diff since startup</div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-bottom: 18px;">
+      <h2>Connected Miners Detail</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Miner UA</th>
+            <th>Hashrate</th>
+            <th>Current Diff</th>
+            <th>Best Share Diff</th>
+            <th>Shares</th>
+            <th>Last Seen</th>
+          </tr>
+        </thead>
+        <tbody id="workers-body">
+          <tr><td colspan="6">Loading workers...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel-row">
+      <div class="card">
+        <h2>Recent Share Events</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Miner UA</th>
+              <th>Share Diff</th>
+              <th>Job Age</th>
+              <th>Accepted</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody id="events-body">
+            <tr><td colspan="5">Loading share events...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Block Events</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Height</th>
+              <th>Status</th>
+              <th>Hash</th>
+              <th>Miner UA</th>
+            </tr>
+          </thead>
+          <tbody id="blocks-body">
+            <tr><td colspan="4">No block activity yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="foot">This panel is read-only. For Internet exposure, keep <code>api.bind = "127.0.0.1"</code> and publish it through your own reverse proxy.</div>
+  </div>
+
+  <script>
+    const PREFIXES = ["", "K", "M", "G", "T", "P", "E", "Z", "Y"];
+
+    function formatScaled(value, unit = "", digits = 2) {
+      const num = Number(value || 0);
+      if (!Number.isFinite(num) || num <= 0) return unit ? `0 ${unit}` : "0";
+      let scaled = num;
+      let idx = 0;
+      while (scaled >= 1000 && idx < PREFIXES.length - 1) {
+        scaled /= 1000;
+        idx += 1;
+      }
+      const prefix = PREFIXES[idx];
+      return unit ? `${scaled.toFixed(digits)} ${prefix}${unit}`.trim() : `${scaled.toFixed(digits)} ${prefix}`.trim();
+    }
+
+    function formatHashrate(valueHs, digits = 2) {
+      return formatScaled(valueHs, "H/s", digits);
+    }
+
+    function formatDiff(value, digits = 2) {
+      return formatScaled(value, "", digits);
+    }
+
+    function formatUptime(seconds) {
+      let left = Math.max(0, Number(seconds || 0));
+      const d = Math.floor(left / 86400);
+      left %= 86400;
+      const h = Math.floor(left / 3600);
+      left %= 3600;
+      const m = Math.floor(left / 60);
+      const s = Math.floor(left % 60);
+      return `${d ? `${d}d ` : ""}${h ? `${h}h ` : ""}${m ? `${m}m ` : ""}${s}s`.trim();
+    }
+
+    function formatBtc(value) {
+      return `${Number(value || 0).toFixed(8)} BTC`;
+    }
+
+    function fmtTs(value) {
+      return value ? new Date(value).toLocaleString() : "-";
+    }
+
+    function shortHash(value) {
+      return value ? `${value.slice(0, 12)}...${value.slice(-10)}` : "-";
+    }
+
+    async function loadJson(path) {
+      const res = await fetch(path, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function row(cells) {
+      const tr = document.createElement("tr");
+      cells.forEach(cell => {
+        const td = document.createElement("td");
+        if (cell.className) td.className = cell.className;
+        td.textContent = cell.value;
+        tr.appendChild(td);
+      });
+      return tr;
+    }
+
+    async function refresh() {
+      try {
+        const [stats, summary, workers, blocks, events, network] = await Promise.all([
+          loadJson("/api/stats"),
+          loadJson("/api/v1/summary"),
+          loadJson("/api/workers"),
+          loadJson("/api/v1/blocks"),
+          loadJson("/api/v1/events"),
+          loadJson("/api/v1/network")
+        ]);
+
+        document.getElementById("gateway-version").textContent = stats.gateway_version;
+        document.getElementById("uptime").textContent = `Uptime ${formatUptime(stats.uptime_seconds)}`;
+        document.getElementById("prevhash").textContent = `Prevhash ${shortHash(summary.current_prevhash)}`;
+        document.getElementById("template-status").textContent = stats.template_ready ? "Template Ready" : "Template Waiting";
+
+        document.getElementById("val-hashrate").textContent = formatHashrate(stats.hashrate_hs);
+        document.getElementById("val-workers").textContent = `${stats.subscriptions} / ${stats.connections}`;
+        document.getElementById("val-netdiff").textContent = formatDiff(stats.network_difficulty, 4);
+        document.getElementById("val-height").textContent = stats.current_height || "-";
+        document.getElementById("height-sub").textContent = stats.template_ready ? "Fresh template loaded from bitcoind" : "Waiting for block template";
+        document.getElementById("val-reward").textContent = formatBtc(stats.current_value_btc);
+        document.getElementById("reward-sub").textContent = `${formatScaled(stats.txn_count)} transactions in template`;
+        const networkName = network.network || "Network";
+        const hasNetworkHashrate = Number.isFinite(network.networkhashps);
+        document.getElementById("val-network-hashrate").textContent = hasNetworkHashrate
+          ? `${networkName} ${formatHashrate(network.networkhashps, 3)}`
+          : `${networkName} -`;
+        document.getElementById("network-hashrate-sub").textContent = Number.isFinite(network.blocks)
+          ? `Height ${network.blocks} reported by bitcoind`
+          : "Reported by bitcoind";
+        document.getElementById("val-blocks").textContent = formatScaled(summary.total_blocks);
+        document.getElementById("blocks-sub").textContent = `${summary.submitblock_accepted} ok / ${summary.submitblock_rejected} reject / ${summary.submitblock_rpc_fail} rpc fail`;
+        document.getElementById("val-best-diff").textContent = formatDiff(summary.global_best_diff, 4);
+        document.getElementById("best-diff-sub").textContent = summary.global_best_diff_worker
+          ? `Since startup by ${summary.global_best_diff_worker}`
+          : "Waiting for first accepted share";
+
+        const workersBody = document.getElementById("workers-body");
+        workersBody.innerHTML = "";
+        const workerRows = workers.length ? workers : [{
+          display_name: "No active workers",
+          hashrate_hs: 0,
+          current_diff: 0,
+          best_diff: 0,
+          shares: 0,
+          last_seen: null
+        }];
+        workerRows.slice(0, 24).forEach(worker => {
+          workersBody.appendChild(row([
+            { value: worker.display_name },
+            { value: formatHashrate(worker.hashrate_hs) },
+            { value: formatDiff(worker.current_diff, 4) },
+            { value: formatDiff(worker.best_diff, 4) },
+            { value: formatScaled(worker.shares) },
+            { value: fmtTs(worker.last_seen) }
+          ]));
+        });
+
+        const eventsBody = document.getElementById("events-body");
+        eventsBody.innerHTML = "";
+        const eventRows = events.length ? events.slice(-16).reverse() : [{
+          worker: "No recent shares",
+          difficulty: 0,
+          job_age_secs: 0,
+          accepted: false,
+          created_at: null
+        }];
+        eventRows.forEach(event => {
+          eventsBody.appendChild(row([
+            { value: event.worker },
+            { value: formatDiff(event.difficulty) },
+            { value: `${event.job_age_secs}s` },
+            { value: event.accepted ? "Yes" : "No", className: event.accepted ? "ok" : "warn" },
+            { value: fmtTs(event.created_at) }
+          ]));
+        });
+
+        const blocksBody = document.getElementById("blocks-body");
+        blocksBody.innerHTML = "";
+        const blockRows = blocks.length ? blocks : [{
+          height: "-",
+          status: "none",
+          hash: "-",
+          worker: "-"
+        }];
+        blockRows.slice(0, 12).forEach(block => {
+          blocksBody.appendChild(row([
+            { value: String(block.height) },
+            { value: block.status, className: block.status === "submitted" ? "ok" : block.status === "submit_failed" ? "bad" : "warn" },
+            { value: shortHash(block.hash), className: "mono" },
+            { value: block.worker }
+          ]));
+        });
+      } catch (err) {
+        document.getElementById("template-status").textContent = `Monitor Error: ${err.message}`;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>
