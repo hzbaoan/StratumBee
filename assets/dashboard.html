@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StratumBee | Command Surface</title>
+  <style>
+    :root {
+      --bg-0: #040814;
+      --bg-1: #07111f;
+      --panel: rgba(7, 13, 25, 0.84);
+      --panel-strong: rgba(8, 16, 31, 0.94);
+      --line: rgba(106, 142, 212, 0.18);
+      --line-strong: rgba(83, 237, 255, 0.22);
+      --text: #eef6ff;
+      --muted: #8ea4c5;
+      --muted-strong: #bfd4f2;
+      --cyan: #53edff;
+      --lime: #92ffb1;
+      --amber: #ffb36f;
+      --rose: #ff6b8b;
+      --shadow: 0 28px 72px rgba(0, 0, 0, 0.42);
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", "Aptos", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(83, 237, 255, 0.18), transparent 24%),
+        radial-gradient(circle at 86% 10%, rgba(123, 139, 255, 0.2), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(146, 255, 177, 0.08), transparent 30%),
+        linear-gradient(180deg, #030611 0%, var(--bg-0) 22%, var(--bg-1) 58%, #050913 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(83, 237, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(83, 237, 255, 0.06) 1px, transparent 1px);
+      background-size: 120px 120px;
+      mask-image: radial-gradient(circle at center, black 22%, transparent 88%);
+      opacity: 0.26;
+    }
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 18px 36px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
+      gap: 22px;
+      margin-bottom: 18px;
+      padding: 28px;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(10, 19, 37, 0.94), rgba(5, 9, 18, 0.92)),
+        radial-gradient(circle at top right, rgba(83, 237, 255, 0.12), transparent 34%);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--cyan);
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Orbitron", "Bahnschrift SemiBold", "Space Grotesk", sans-serif;
+      font-size: clamp(2.6rem, 6vw, 4.8rem);
+      line-height: 0.96;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 0%, #d8efff 28%, #7ef1ff 60%, #92ffb1 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .lede {
+      margin: 16px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(8, 14, 26, 0.72);
+      border: 1px solid rgba(83, 237, 255, 0.14);
+      color: var(--muted-strong);
+      font-size: 0.92rem;
+    }
+    .hero-right {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(83, 237, 255, 0.16);
+      background:
+        linear-gradient(135deg, rgba(14, 29, 56, 0.94), rgba(7, 12, 24, 0.78)),
+        radial-gradient(circle at top right, rgba(83, 237, 255, 0.14), transparent 38%);
+    }
+    .dot {
+      flex: 0 0 14px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: var(--lime);
+      box-shadow: 0 0 18px rgba(146, 255, 177, 0.9);
+    }
+    .status-text {
+      font-family: "Orbitron", "Bahnschrift SemiBold", sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .status-sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .hero-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .signal {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(83, 237, 255, 0.12);
+      background: rgba(7, 13, 25, 0.7);
+    }
+    .signal-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .signal-value {
+      display: block;
+      margin-top: 8px;
+      font-family: "Orbitron", "Bahnschrift SemiBold", sans-serif;
+      font-size: 1.08rem;
+      letter-spacing: 0.04em;
+    }
+    .signal-sub {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .grid,
+    .telemetry-strip {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .telemetry-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .panel-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(10, 18, 34, 0.94), rgba(5, 10, 19, 0.92));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(83, 237, 255, 0.78), transparent);
+      opacity: 0.8;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 0.8rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card-head h2 { margin: 0; }
+    .card-meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+    .big {
+      font-family: "Orbitron", "Bahnschrift SemiBold", sans-serif;
+      font-size: clamp(1.55rem, 3vw, 2.4rem);
+      line-height: 1.02;
+      letter-spacing: 0.02em;
+    }
+    .sub {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+    .telemetry-card .big {
+      font-size: 1.16rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(106, 142, 212, 0.14);
+      background: rgba(4, 8, 17, 0.56);
+    }
+    table {
+      width: 100%;
+      min-width: 700px;
+      border-collapse: collapse;
+      font-size: 0.93rem;
+    }
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(106, 142, 212, 0.1);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(8, 15, 29, 0.96);
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+    tbody tr:hover { background: rgba(83, 237, 255, 0.045); }
+    td { color: var(--text); }
+    td[colspan] {
+      color: var(--muted);
+      text-align: center;
+    }
+    .mono {
+      font-family: "IBM Plex Mono", "Cascadia Code", monospace;
+      word-break: break-all;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 0.74rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .ok, .badge.ok {
+      color: var(--lime);
+      background: rgba(146, 255, 177, 0.08);
+      border-color: rgba(146, 255, 177, 0.18);
+    }
+    .warn, .badge.warn {
+      color: var(--amber);
+      background: rgba(255, 179, 111, 0.08);
+      border-color: rgba(255, 179, 111, 0.18);
+    }
+    .bad, .badge.bad {
+      color: #ff99ae;
+      background: rgba(255, 107, 139, 0.1);
+      border-color: rgba(255, 107, 139, 0.18);
+    }
+    .accent, .badge.accent {
+      color: var(--cyan);
+      background: rgba(83, 237, 255, 0.08);
+      border-color: rgba(83, 237, 255, 0.18);
+    }
+    .foot {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+      margin-top: 6px;
+    }
+    code {
+      padding: 0.12rem 0.36rem;
+      border-radius: 8px;
+      background: rgba(83, 237, 255, 0.08);
+      color: var(--muted-strong);
+    }
+    body[data-template-state="waiting"] .dot {
+      background: var(--amber);
+      box-shadow: 0 0 18px rgba(255, 179, 111, 0.88);
+    }
+    body[data-template-state="error"] .dot {
+      background: var(--rose);
+      box-shadow: 0 0 18px rgba(255, 107, 139, 0.88);
+    }
+    @media (max-width: 1180px) {
+      .hero { grid-template-columns: 1fr; }
+      .grid, .telemetry-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .shell { padding: 18px 12px 28px; }
+      .hero { padding: 18px; }
+      .grid, .telemetry-strip, .hero-strip { grid-template-columns: 1fr; }
+      .card-head { display: block; }
+      .card-meta { margin-top: 8px; white-space: normal; }
+      table { min-width: 620px; }
+      th, td { padding: 11px 10px; }
+    }
+  </style>
+</head>
+<body data-template-state="waiting">
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Stratum V1 Solo Mining Control Surface</p>
+        <h1>StratumBee</h1>
+        <p class="lede">Solo bitcoind template collector, Stratum V1 broadcaster, local share validator, block submitter, read-only monitor. Reward payout is fixed by <code>stratumbee.toml</code>; miners are identified by firmware UA instead of Bitcoin address.</p>
+        <div class="hero-meta">
+          <span class="pill" id="gateway-version">StratumBee</span>
+          <span class="pill" id="network-name">network</span>
+          <span class="pill" id="uptime">uptime</span>
+          <span class="pill mono" id="prevhash">prevhash</span>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="status">
+          <span class="dot"></span>
+          <div>
+            <div class="status-text" id="template-status">template waiting</div>
+            <div class="status-sub" id="template-status-sub">Awaiting first viable template from bitcoind</div>
+          </div>
+        </div>
+        <div class="hero-strip">
+          <div class="signal">
+            <span class="signal-label">Current Job</span>
+            <strong class="signal-value" id="hero-job">-</strong>
+            <span class="signal-sub" id="hero-job-sub">nBits -</span>
+          </div>
+          <div class="signal">
+            <span class="signal-label">Mempool Pressure</span>
+            <strong class="signal-value" id="hero-mempool">-</strong>
+            <span class="signal-sub" id="hero-mempool-sub">No node mempool telemetry</span>
+          </div>
+          <div class="signal">
+            <span class="signal-label">Submit Path</span>
+            <strong class="signal-value" id="hero-submit">Idle</strong>
+            <span class="signal-sub" id="hero-submit-sub">No block submit attempts recorded</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Total Hashrate</h2>
+        <div class="big" id="val-hashrate">-</div>
+        <div class="sub">Aggregate accepted-share estimate</div>
+      </div>
+      <div class="card">
+        <h2>Active Miners</h2>
+        <div class="big" id="val-workers">-</div>
+        <div class="sub">Authorized sessions visible in dashboard</div>
+      </div>
+      <div class="card">
+        <h2>Network Difficulty</h2>
+        <div class="big" id="val-netdiff">-</div>
+        <div class="sub">Current template difficulty</div>
+      </div>
+      <div class="card">
+        <h2>Current Height</h2>
+        <div class="big" id="val-height">-</div>
+        <div class="sub" id="height-sub">Waiting for template</div>
+      </div>
+      <div class="card">
+        <h2>Block Reward</h2>
+        <div class="big" id="val-reward">-</div>
+        <div class="sub" id="reward-sub">Subsidy + fees</div>
+      </div>
+      <div class="card">
+        <h2>Network Hash Rate</h2>
+        <div class="big" id="val-network-hashrate">-</div>
+        <div class="sub" id="network-hashrate-sub">Reported by bitcoind</div>
+      </div>
+      <div class="card">
+        <h2>Blocks</h2>
+        <div class="big" id="val-blocks">-</div>
+        <div class="sub" id="blocks-sub">Submission health</div>
+      </div>
+      <div class="card">
+        <h2>Best Diff</h2>
+        <div class="big" id="val-best-diff">-</div>
+        <div class="sub" id="best-diff-sub">Highest accepted best diff since startup</div>
+      </div>
+    </section>
+
+    <section class="telemetry-strip">
+      <div class="card telemetry-card">
+        <h2>Clean Jobs</h2>
+        <div class="big" id="strip-clean">-</div>
+        <div class="sub" id="strip-clean-sub">Job broadcast hygiene</div>
+      </div>
+      <div class="card telemetry-card">
+        <h2>Recent Share Accept</h2>
+        <div class="big" id="strip-share">-</div>
+        <div class="sub" id="strip-share-sub">Latest share event window</div>
+      </div>
+      <div class="card telemetry-card">
+        <h2>ZMQ Feed</h2>
+        <div class="big" id="strip-zmq">-</div>
+        <div class="sub" id="strip-zmq-sub">Block detection path</div>
+      </div>
+      <div class="card telemetry-card">
+        <h2>Mempool Fees</h2>
+        <div class="big" id="strip-fee">-</div>
+        <div class="sub" id="strip-fee-sub">Node pressure and fee surface</div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-bottom: 18px;">
+      <div class="card-head">
+        <h2>Connected Miners Detail</h2>
+        <div class="card-meta" id="workers-meta">Waiting for miner telemetry</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Miner UA</th>
+              <th>Hashrate</th>
+              <th>Target Diff</th>
+              <th>Best Share</th>
+              <th>Accepted / Reject / Stale</th>
+              <th>TCP Latency</th>
+              <th>Last Share</th>
+            </tr>
+          </thead>
+          <tbody id="workers-body">
+            <tr><td colspan="7">Loading workers...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-row">
+      <div class="card">
+        <div class="card-head">
+          <h2>Recent Share Events</h2>
+          <div class="card-meta">Latest 16 share events</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Miner UA</th>
+                <th>Share Diff</th>
+                <th>Job Age</th>
+                <th>Notify Delay</th>
+                <th>Accepted</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody id="events-body">
+              <tr><td colspan="6">Loading share events...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>Block Events</h2>
+          <div class="card-meta">Latest submit outcomes</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Height</th>
+                <th>Status</th>
+                <th>Hash</th>
+                <th>Miner UA</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody id="blocks-body">
+              <tr><td colspan="5">No block activity yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="foot">This panel is read-only. For Internet exposure, keep <code>api.bind = "127.0.0.1"</code> and publish it through your own reverse proxy.</div>
+  </div>
+
+  <script>
+    const PREFIXES = ["", "K", "M", "G", "T", "P", "E", "Z", "Y"];
+    let latencyByWorker = new Map();
+    let latencyLoaded = false;
+    let latencyLoadError = "";
+
+    function numericOrNull(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
+    }
+
+    function formatScaled(value, unit = "", digits = 2) {
+      const num = Number(value || 0);
+      if (!Number.isFinite(num) || num <= 0) return unit ? `0 ${unit}` : "0";
+      let scaled = num;
+      let idx = 0;
+      while (scaled >= 1000 && idx < PREFIXES.length - 1) {
+        scaled /= 1000;
+        idx += 1;
+      }
+      const prefix = PREFIXES[idx];
+      return unit ? `${scaled.toFixed(digits)} ${prefix}${unit}`.trim() : `${scaled.toFixed(digits)} ${prefix}`.trim();
+    }
+
+    function formatHashrate(valueHs, digits = 2) {
+      return formatScaled(valueHs, "H/s", digits);
+    }
+
+    function formatDiff(value, digits = 2) {
+      return formatScaled(value, "", digits);
+    }
+
+    function formatUptime(seconds) {
+      let left = Math.max(0, Number(seconds || 0));
+      const d = Math.floor(left / 86400);
+      left %= 86400;
+      const h = Math.floor(left / 3600);
+      left %= 3600;
+      const m = Math.floor(left / 60);
+      const s = Math.floor(left % 60);
+      return `${d ? `${d}d ` : ""}${h ? `${h}h ` : ""}${m ? `${m}m ` : ""}${s}s`.trim();
+    }
+
+    function formatBtc(value) {
+      return `${Number(value || 0).toFixed(8)} BTC`;
+    }
+
+    function formatBytes(value) {
+      const num = Number(value || 0);
+      if (!Number.isFinite(num) || num <= 0) return "0 B";
+      const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+      let scaled = num;
+      let idx = 0;
+      while (scaled >= 1024 && idx < units.length - 1) {
+        scaled /= 1024;
+        idx += 1;
+      }
+      return `${scaled.toFixed(scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2)} ${units[idx]}`;
+    }
+
+    function formatMs(value) {
+      const num = Number(value || 0);
+      if (!Number.isFinite(num) || num <= 0) return "0 ms";
+      if (num >= 1000) return `${(num / 1000).toFixed(num >= 10000 ? 1 : 2)} s`;
+      return `${num.toFixed(num >= 100 ? 0 : 1)} ms`;
+    }
+
+    function formatPercent(value, digits = 0) {
+      const ratio = Math.min(1, Math.max(0, Number(value) || 0));
+      return `${(ratio * 100).toFixed(digits)}%`;
+    }
+
+    function fmtTs(value) {
+      return value ? new Date(value).toLocaleString() : "-";
+    }
+
+    function formatAgo(value) {
+      if (!value) return "-";
+      const ts = new Date(value);
+      if (Number.isNaN(ts.getTime())) return "-";
+      const seconds = Math.max(0, Math.floor((Date.now() - ts.getTime()) / 1000));
+      if (seconds < 5) return "just now";
+      if (seconds < 60) return `${seconds}s ago`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+      return `${Math.floor(seconds / 86400)}d ago`;
+    }
+
+    function shortHash(value) {
+      if (!value) return "-";
+      if (value.length <= 24) return value;
+      return `${value.slice(0, 12)}...${value.slice(-10)}`;
+    }
+
+    async function loadJson(path) {
+      const res = await fetch(path, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function setText(id, value, title = "") {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = value;
+      if (title) {
+        el.title = title;
+      } else {
+        el.removeAttribute("title");
+      }
+    }
+
+    function average(values) {
+      const valid = values.filter(value => Number.isFinite(Number(value)));
+      if (!valid.length) return 0;
+      return valid.reduce((sum, value) => sum + Number(value), 0) / valid.length;
+    }
+
+    function emptyRow(colspan, text) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = colspan;
+      td.textContent = text;
+      tr.appendChild(td);
+      return tr;
+    }
+
+    function badgeClassForEvent(event) {
+      if (event.is_block && event.accepted) return "accent";
+      if (event.accepted) return "ok";
+      if (event.reconnect_recent) return "warn";
+      return "bad";
+    }
+
+    function badgeTextForEvent(event) {
+      if (event.is_block && event.accepted) return "Block";
+      if (event.accepted) return "Accepted";
+      if (event.reconnect_recent) return "Reconnect";
+      return "Rejected";
+    }
+
+    function badgeClassForBlock(status) {
+      if (status === "submitted") return "ok";
+      if (status === "duplicate") return "accent";
+      if (status === "submit_failed") return "bad";
+      return "warn";
+    }
+
+    function row(cells) {
+      const tr = document.createElement("tr");
+      cells.forEach(cell => {
+        const td = document.createElement("td");
+        if (cell.className) td.className = cell.className;
+        if (cell.title) td.title = cell.title;
+        if (cell.badgeClass) {
+          const span = document.createElement("span");
+          span.className = `badge ${cell.badgeClass}`;
+          span.textContent = cell.value;
+          td.appendChild(span);
+        } else {
+          td.textContent = cell.value;
+        }
+        tr.appendChild(td);
+      });
+      return tr;
+    }
+
+    function latencyCell(worker) {
+      const sample = latencyByWorker.get(worker);
+      if (!latencyLoaded) {
+        return { value: "Sampling..." };
+      }
+      if (!sample) {
+        return {
+          value: "Not Sampled",
+          title: "Reload this page to sample TCP latency for miners connected after page load."
+        };
+      }
+      const titleParts = [];
+      if (sample.peer_addr) titleParts.push(`Peer ${sample.peer_addr}`);
+      if (sample.sampled_at) titleParts.push(`Sampled ${fmtTs(sample.sampled_at)}`);
+      if (Number.isFinite(Number(sample.latency_ms))) {
+        return {
+          value: formatMs(sample.latency_ms),
+          title: titleParts.join("\n")
+        };
+      }
+      if (sample.error) titleParts.unshift(sample.error);
+      return {
+        value: "Unavailable",
+        title: titleParts.join("\n")
+      };
+    }
+
+    async function loadLatency() {
+      try {
+        const samples = await loadJson("/api/v1/latency");
+        latencyByWorker = new Map(samples.map(sample => [sample.worker, sample]));
+        latencyLoadError = "";
+      } catch (err) {
+        latencyByWorker = new Map();
+        latencyLoadError = err.message;
+      } finally {
+        latencyLoaded = true;
+      }
+    }
+
+    async function refresh() {
+      try {
+        const [stats, summary, miners, blocks, events, network, template, mempool] = await Promise.all([
+          loadJson("/api/stats"),
+          loadJson("/api/v1/summary"),
+          loadJson("/api/v1/miners"),
+          loadJson("/api/v1/blocks"),
+          loadJson("/api/v1/events"),
+          loadJson("/api/v1/network"),
+          loadJson("/api/v1/template"),
+          loadJson("/api/v1/mempool")
+        ]);
+
+        const networkName = network.network || "Network";
+        const currentPrevhash = summary.current_prevhash || "";
+        const networkHashrate = numericOrNull(network.networkhashps);
+        const networkHeight = numericOrNull(network.blocks);
+        const mempoolSize = numericOrNull(mempool.size);
+        const mempoolUsage = numericOrNull(mempool.usage) ?? numericOrNull(mempool.bytes);
+        const mempoolFee = numericOrNull(mempool.total_fee);
+        const mempoolMinFee = numericOrNull(mempool.mempoolminfee);
+        const totalAccepted = miners.reduce((sum, miner) => sum + (Number(miner.shares) || 0), 0);
+        const totalRejects = miners.reduce((sum, miner) => sum + (Number(miner.rejected) || 0), 0);
+        const totalStale = miners.reduce((sum, miner) => sum + (Number(miner.stale) || 0), 0);
+        const sampledLatencies = miners
+          .map(miner => latencyByWorker.get(miner.worker))
+          .map(sample => sample ? numericOrNull(sample.latency_ms) : null)
+          .filter(value => value !== null);
+        const acceptedEvents = events.filter(event => event.accepted).length;
+        const recentShareRatio = events.length ? acceptedEvents / events.length : 0;
+        const submitAttempts = (summary.submitblock_accepted || 0) + (summary.submitblock_rejected || 0) + (summary.submitblock_rpc_fail || 0);
+        const submitRatio = submitAttempts ? (summary.submitblock_accepted || 0) / submitAttempts : 0;
+        const cleanRatio = summary.jobs_sent ? (summary.clean_jobs_sent || 0) / summary.jobs_sent : 0;
+        let latencyMeta = "Sampling TCP latency";
+        if (latencyLoaded) {
+          if (latencyLoadError) {
+            latencyMeta = "TCP probe failed";
+          } else if (sampledLatencies.length) {
+            latencyMeta = `avg TCP ${formatMs(average(sampledLatencies))}`;
+          } else {
+            latencyMeta = "TCP RTT unavailable";
+          }
+        }
+
+        document.body.dataset.templateState = stats.template_ready ? "ready" : "waiting";
+
+        setText("gateway-version", stats.gateway_version);
+        setText("network-name", networkName);
+        setText("uptime", `Uptime ${formatUptime(stats.uptime_seconds)}`);
+        setText("prevhash", `Prevhash ${shortHash(currentPrevhash)}`, currentPrevhash);
+        setText("template-status", stats.template_ready ? "Template Locked" : "Template Waiting");
+        setText(
+          "template-status-sub",
+          stats.template_ready
+            ? `${networkName} height ${stats.current_height || "-"} / ${formatScaled(stats.txn_count || 0, "", 0)} tx in template`
+            : "Awaiting first viable template from bitcoind"
+        );
+        setText("hero-job", template.ready ? `Job ${template.job_id}` : "No Job");
+        setText("hero-job-sub", template.ready ? `nBits ${template.bits}` : "nBits unavailable");
+        setText("hero-mempool", mempoolSize !== null ? `${formatScaled(mempoolSize, "", 0)} tx` : "No Feed");
+        setText("hero-mempool-sub", mempoolUsage !== null ? `${formatBytes(mempoolUsage)} resident usage` : "No node mempool telemetry");
+        setText("hero-submit", submitAttempts ? formatPercent(submitRatio) : "Idle");
+        setText(
+          "hero-submit-sub",
+          submitAttempts
+            ? `${summary.submitblock_accepted} ok / ${summary.submitblock_rejected} reject / ${summary.submitblock_rpc_fail} rpc fail`
+            : "No block submit attempts recorded"
+        );
+
+        setText("val-hashrate", formatHashrate(stats.hashrate_hs));
+        setText("val-workers", String(miners.length));
+        setText("val-netdiff", formatDiff(stats.network_difficulty, 4));
+        setText("val-height", stats.current_height || "-");
+        setText("height-sub", stats.template_ready ? "Fresh template loaded from bitcoind" : "Waiting for block template");
+        setText("val-reward", formatBtc(stats.current_value_btc));
+        setText("reward-sub", `${formatScaled(stats.txn_count || 0, "", 0)} transactions in template`);
+        setText(
+          "val-network-hashrate",
+          networkHashrate !== null
+            ? `${networkName} ${formatHashrate(networkHashrate, 3)}`
+            : `${networkName} -`
+        );
+        setText(
+          "network-hashrate-sub",
+          networkHeight !== null
+            ? `Height ${networkHeight} reported by bitcoind`
+            : "Reported by bitcoind"
+        );
+        setText("val-blocks", formatScaled(summary.total_blocks || 0, "", 0));
+        setText("blocks-sub", `${summary.submitblock_accepted} ok / ${summary.submitblock_rejected} reject / ${summary.submitblock_rpc_fail} rpc fail`);
+        setText("val-best-diff", formatDiff(summary.global_best_diff || 0, 4));
+        setText("best-diff-sub", summary.global_best_diff_worker
+          ? `Since startup by ${summary.global_best_diff_worker}`
+          : "Waiting for first accepted share"
+        );
+
+        setText("strip-clean", summary.jobs_sent ? formatPercent(cleanRatio) : "No Data");
+        setText("strip-clean-sub", summary.jobs_sent ? `${summary.clean_jobs_sent} clean jobs of ${summary.jobs_sent} total notify packets` : "Job broadcast hygiene");
+        setText("strip-share", events.length ? formatPercent(recentShareRatio) : "No Data");
+        setText("strip-share-sub", events.length ? `${acceptedEvents} accepted in latest ${events.length} share events` : "Latest share event window");
+        setText("strip-zmq", summary.zmq_block_notifications ? `${summary.zmq_blocks_detected} / ${summary.zmq_block_notifications}` : "Idle");
+        setText("strip-zmq-sub", summary.zmq_block_notifications ? "Detections versus raw feed notifications" : "Block detection path");
+        setText("strip-fee", mempoolFee !== null ? formatBtc(mempoolFee) : "No Data");
+        setText("strip-fee-sub", mempoolMinFee !== null ? `Min fee ${mempoolMinFee.toFixed(8)} BTC/kvB` : "Node pressure and fee surface");
+
+        setText(
+          "workers-meta",
+          miners.length
+            ? `${miners.length} miners online / ${latencyMeta} / ${formatScaled(totalAccepted, "", 0)} accepted / ${formatScaled(totalRejects, "", 0)} reject / ${formatScaled(totalStale, "", 0)} stale`
+            : "No live miner telemetry"
+        );
+
+        const workersBody = document.getElementById("workers-body");
+        workersBody.innerHTML = "";
+        if (!miners.length) {
+          workersBody.appendChild(emptyRow(7, "No active miners"));
+        } else {
+          miners.slice(0, 18).forEach(miner => {
+            const lastShareAt = miner.last_share_time || miner.last_seen;
+            const latency = latencyCell(miner.worker);
+            workersBody.appendChild(row([
+              { value: miner.user_agent || miner.worker, title: miner.worker },
+              { value: formatHashrate((Number(miner.hashrate_gh) || 0) * 1000000000) },
+              { value: formatDiff(miner.difficulty, 4) },
+              { value: formatDiff(miner.best_difficulty || miner.best_submitted_difficulty || 0, 4) },
+              { value: `${formatScaled(miner.shares || 0, "", 0)} / ${formatScaled(miner.rejected || 0, "", 0)} / ${formatScaled(miner.stale || 0, "", 0)}` },
+              latency,
+              { value: formatAgo(lastShareAt), title: fmtTs(lastShareAt) }
+            ]));
+          });
+        }
+
+        const eventsBody = document.getElementById("events-body");
+        eventsBody.innerHTML = "";
+        if (!events.length) {
+          eventsBody.appendChild(emptyRow(6, "No recent share events"));
+        } else {
+          events.slice(-16).reverse().forEach(event => {
+            eventsBody.appendChild(row([
+              { value: event.worker },
+              { value: formatDiff(event.difficulty) },
+              { value: `${event.job_age_secs}s` },
+              { value: formatMs(event.notify_delay_ms) },
+              { value: badgeTextForEvent(event), badgeClass: badgeClassForEvent(event) },
+              { value: formatAgo(event.created_at), title: fmtTs(event.created_at) }
+            ]));
+          });
+        }
+
+        const blocksBody = document.getElementById("blocks-body");
+        blocksBody.innerHTML = "";
+        if (!blocks.length) {
+          blocksBody.appendChild(emptyRow(5, "No block activity yet"));
+        } else {
+          blocks.slice(0, 12).forEach(block => {
+            blocksBody.appendChild(row([
+              { value: String(block.height) },
+              { value: block.status, badgeClass: badgeClassForBlock(block.status) },
+              { value: shortHash(block.hash), className: "mono", title: block.reason ? `${block.hash}\n${block.reason}` : block.hash },
+              { value: block.worker || "-" },
+              { value: formatAgo(block.created_at), title: fmtTs(block.created_at) }
+            ]));
+          });
+        }
+      } catch (err) {
+        document.body.dataset.templateState = "error";
+        setText("template-status", "Monitor Error");
+        setText("template-status-sub", err.message);
+      }
+    }
+
+    refresh();
+    loadLatency().then(() => refresh());
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

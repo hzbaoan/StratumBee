@@ -1,0 +1,43 @@
+[bitcoin]
+network = "mainnet"
+rpc_url = "http://127.0.0.1:8332"
+rpc_user = "bitcoinrpc"
+rpc_pass = "change-me"
+p2p_fast_peer = "127.0.0.1:8333"
+zmq_block_urls = [
+  "tcp://127.0.0.1:28334",
+  "tcp://127.0.0.1:28332",
+]
+
+[stratum]
+bind = "0.0.0.0"
+port = 3333
+extranonce1_size = 4
+extranonce2_size = 8
+min_difficulty = 16384
+max_difficulty = 4194304
+start_difficulty = 16384
+target_share_time_secs = 15.0
+vardiff_retarget_time_secs = 90.0
+vardiff_enabled = true
+max_line_bytes = 65536
+idle_timeout_secs = 600
+
+[api]
+bind = "127.0.0.1"
+port = 8080
+enabled = true
+
+[mining]
+payout_address = "bc1qreplace-with-your-address"
+pool_tag = "StratumBee"
+coinbase_message = "Solo"
+save_solved_blocks_dir = "var/solved-blocks"
+block_archive_pre_submit = true
+
+[runtime]
+notify_bucket_capacity = 2.0
+notify_bucket_refill_ms = 500.0
+miner_inactive_timeout_secs = 600
+max_recent_events = 1024
+max_block_history = 32
