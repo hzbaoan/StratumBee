@@ -1,0 +1,23 @@
+[Unit]
+Description=StratumBee solo bitcoin gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/stratumbee
+ExecStart=/usr/local/bin/stratumbee --config /opt/stratumbee/config/stratumbee.toml
+Restart=always
+RestartSec=5
+User=stratumbee
+Group=stratumbee
+Environment=RUST_LOG=info
+EnvironmentFile=-/opt/stratumbee/config/stratumbee.env
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/stratumbee/var
+
+[Install]
+WantedBy=multi-user.target
