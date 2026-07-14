@@ -1,0 +1,7 @@
+/target
+/var
+/.idea
+/.vscode
+*.log
+*.tmp
+config/*.secret.hex

@@ -1,0 +1,391 @@
+# StratumBee
+
+StratumBee is a lightweight solo Bitcoin Stratum V1 gateway written in Rust for VPS instances, Raspberry Pi class hardware, and other low-resource hosts. This branch also includes an initial native Stratum V2 Mining listener for Extended Channels.
+
+It bridges `bitcoind` `getblocktemplate`, longpoll, optional ZMQ, and an optional Bitcoin P2P fast-block feed to Stratum V1 miners. Share validation, full block assembly, `submitblock`, active-chain confirmation tracking, and read-only monitoring all stay local.
+
+## Scope
+
+StratumBee is a good fit when:
+
+- You already run a Bitcoin Core node and want a lightweight solo mining entrypoint.
+- You do not need pool accounts, a database, payout accounting, or balance management.
+- You want share validation and block submission to happen locally instead of delegating to an upstream pool.
+- You want something that can run in a constrained environment and still expose a read-only dashboard.
+
+StratumBee does not do the following:
+
+- Pool payout splitting or accounting
+- Dynamic payout address switching based on miner username
+- Write-capable management APIs
+- Stratum V2 Job Declaration, Template Distribution, Standard Channels, or Custom Jobs
+
+## Current Capabilities
+
+- Pulls templates from `getblocktemplate` and uses longpoll as the primary update channel
+- Listens to `hashblock` and `rawblock` ZMQ events to refresh faster after new blocks
+- Supports `bitcoin.p2p_fast_peer` and reacts to `headers`, `cmpctblock`, and `inv` announcements to push clean jobs earlier
+- Serves Stratum V1 with `subscribe`, `authorize`, `submit`, `suggest_difficulty`, `configure`, `get_version`, and `ping`
+- Can serve an encrypted Stratum V2 Mining endpoint with SetupConnection, Extended Channel open, job distribution, target setting, and extended share submission
+- Supports Stratum V1 version rolling with a negotiated mask capped at `1fffe000`; the SV2 Extended Channel path only allows submitted version changes when the Mining version-rolling flag was negotiated and masks out `vbrequired` bits
+- Validates shares locally and computes both real share difficulty and full-network target hits
+- Builds full block hex locally before calling `submitblock`
+- Treats `submitblock` responses of `duplicate` as success
+- Separates node submission results from active-chain confirmation and coinbase maturity
+- Keeps miner state, share events, and recent block history in memory with no external database
+- Exposes a built-in read-only dashboard and JSON API
+- Exposes Prometheus-compatible text metrics at `/metrics`
+- Supports vardiff based on a target share interval
+
+## How It Works
+
+1. On startup, StratumBee fetches the first `getblocktemplate`.
+2. After that it mainly waits on longpoll; if ZMQ is configured, `hashblock` and `rawblock` also trigger refreshes.
+3. If `bitcoin.p2p_fast_peer` is configured, `headers`, `cmpctblock`, and similar announcements can trigger an early clean job with a minimal coinbase-only template.
+4. The final transaction list, fees, and witness commitment still come from the next real GBT or longpoll template.
+5. When a miner submits a share, StratumBee rebuilds the coinbase, merkle root, and block header locally, then validates the share target and block target.
+6. If the share solves a block, StratumBee submits it to Bitcoin Core and records the submission result as `candidate`, `submitted`, `duplicate`, `rejected`, or `submit_failed`.
+7. Submitted and duplicate blocks are polled with verbose `getblockheader`. Reward state progresses independently through `pending_confirmation`, `confirming`, `matured`, or `orphaned`; coinbase rewards are considered matured at 100 active-chain confirmations.
+
+## Requirements
+
+### Software
+
+- Rust `1.85` or newer
+- A Bitcoin Core node with RPC enabled
+- ZMQ enabled in Bitcoin Core if you want `hashblock` and `rawblock` notifications
+- Reachability to a Bitcoin P2P port if you enable `bitcoin.p2p_fast_peer`
+- ZeroMQ development libraries when building on Linux
+
+### Debian / Ubuntu Packages
+
+```bash
+apt-get update
+apt-get install -y build-essential pkg-config libzmq3-dev
+```
+
+## Bitcoin Core Setup
+
+RPC is required. ZMQ is optional but recommended for faster block detection.
+
+```ini
+server=1
+rpcuser=bitcoinrpc
+rpcpassword=replace-with-strong-rpc-password
+rpcallowip=127.0.0.1
+
+zmqpubhashblock=tcp://127.0.0.1:28334
+zmqpubrawblock=tcp://127.0.0.1:28332
+```
+
+Notes:
+
+- `zmqpubhashblock` and `zmqpubrawblock` are optional, but recommended.
+- Without ZMQ, StratumBee relies on the initial GBT fetch and longpoll.
+- With ZMQ enabled, the update path becomes `longpoll + ZMQ`.
+- `p2p_fast_peer` does not replace GBT refreshes; it only helps send a clean job earlier after a block announcement.
+- If `p2p_fast_peer` is set without an explicit port, StratumBee uses the network default: mainnet `8333`, testnet `18333`, signet `38333`, regtest `18444`.
+
+## Quick Start
+
+1. Edit [`config/stratumbee.toml`](config/stratumbee.toml).
+2. Set the Bitcoin Core RPC URL, username, and password.
+3. Set `mining.payout_address`, or use `mining.payout_script_hex` if you want to provide the output script directly.
+4. Enable `bitcoin.zmq_block_urls` and `bitcoin.p2p_fast_peer` if you want faster block switchovers.
+5. Start the service.
+
+Run in development:
+
+```bash
+cargo run --release --locked -- --config config/stratumbee.toml
+```
+
+Build and run:
+
+```bash
+cargo build --release --locked
+./target/release/stratumbee --config config/stratumbee.toml
+```
+
+This repository includes [`Cargo.lock`](Cargo.lock). Use `--locked` locally, in CI, and in container builds to keep dependency resolution reproducible.
+
+Default ports:
+
+- Stratum: `3333`
+- Stratum V2: `3334` when enabled
+- API / Dashboard: `8080`
+
+## Configuration
+
+The sample configuration lives at [`config/stratumbee.toml`](config/stratumbee.toml).
+
+The TOML loader is strict. Unknown sections and unknown keys are rejected. Omit optional fields you are not using instead of keeping stale placeholders.
+
+### `[bitcoin]`
+
+| Key | Description |
+| --- | --- |
+| `network` | `mainnet`, `bitcoin` (alias), `testnet`, `signet`, or `regtest` |
+| `rpc_url` | Bitcoin Core RPC endpoint |
+| `rpc_user` | RPC username |
+| `rpc_pass` | RPC password |
+| `zmq_block_urls` | Optional list of ZMQ endpoints |
+| `p2p_fast_peer` | Optional fast block announcement peer, as `host` or `host:port` |
+
+### `[stratum]`
+
+| Key | Description |
+| --- | --- |
+| `bind` / `port` | Stratum listen address and port |
+| `extranonce1_size` | `extranonce1` size in bytes, range `1..=4` |
+| `extranonce2_size` | `extranonce2` size in bytes, range `1..=16` |
+| `min_difficulty` | Minimum share difficulty |
+| `max_difficulty` | Maximum share difficulty |
+| `start_difficulty` | Initial connection difficulty, clamped between min and max |
+| `target_share_time_secs` | Vardiff target share interval |
+| `vardiff_retarget_time_secs` | Vardiff retarget interval |
+| `vardiff_enabled` | Enables or disables vardiff |
+| `auth_token` | Optional password token; when set, miners must send it in the `mining.authorize` password field |
+| `max_line_bytes` | Hard maximum size of one Stratum line; oversized input is closed before the session buffer can grow past the limit |
+| `idle_timeout_secs` | Idle connection timeout |
+
+### `[api]`
+
+| Key | Description |
+| --- | --- |
+| `bind` / `port` | API listen address and port |
+| `enabled` | Enables or disables the read-only dashboard and API |
+
+### `[mining]`
+
+| Key | Description |
+| --- | --- |
+| `payout_address` | Fixed payout address for solved blocks |
+| `payout_script_hex` | Optional raw output script; when set, address parsing is not required |
+| `pool_tag` | Coinbase pool tag, maximum 32 bytes |
+| `coinbase_message` | Extra coinbase message, maximum 32 bytes |
+
+### `[runtime]`
+
+| Key | Description |
+| --- | --- |
+| `notify_bucket_capacity` | Token bucket capacity for non-clean-job notifications |
+| `notify_bucket_refill_ms` | Token refill interval for those notifications |
+| `miner_inactive_timeout_secs` | Removes inactive miners from the dashboard after this many seconds |
+| `max_recent_events` | Maximum number of recent share events kept in memory |
+| `max_block_history` | Maximum number of recent block records kept in memory |
+
+### `[sv2]`
+
+Native Stratum V2 Mining support is available behind `enabled = true`. Current implementation scope is encrypted Noise transport plus Mining Extended Channels. Standard Channels, Job Declaration, Template Distribution, and Custom Jobs are rejected or out of scope.
+
+When enabled, both authority key paths are required. The current implementation uses `noise_sv2::Responder::from_authority_kp`, so the StratumBee process loads 32-byte x-only Authority public and secret key files at runtime. On Unix, group/other-readable secret key files are rejected.
+
+| Key | Description |
+| --- | --- |
+| `enabled` | Starts the SV2 listener when true |
+| `bind` / `port` | SV2 listen address and port |
+| `max_connections` | Maximum concurrent SV2 TCP sessions |
+| `max_connections_per_ip` | Maximum concurrent SV2 TCP sessions from one IP |
+| `max_handshakes` | Maximum concurrent Noise handshakes |
+| `handshake_timeout_secs` | Noise handshake timeout |
+| `idle_timeout_secs` | Encrypted frame read timeout |
+| `frame_max_bytes` | Maximum decrypted SV2 frame payload |
+| `authority_public_key_path` | 32-byte hex Authority public key file |
+| `authority_secret_key_path` | 32-byte hex Authority secret key file |
+| `cert_validity_secs` | Runtime certificate validity passed to SRI Noise responder |
+
+The raw public key file is not the value most miners expect in their UI. For miner configuration, use the dashboard's base58-check Authority Public Key. The base58-check value is encoded with the Stratum V2 URL-scheme version prefix `[1, 0]` followed by the 32-byte x-only public key.
+
+Production note: V1 is the established production path. The SV2 Extended Channel path has been exercised in the included WSL regtest probe and uses the same local validation, `submitblock`, and reward-confirmation path as V1. Public production exposure should still be gated by independent SRI client or proxy interoperability testing and host-level network controls.
+
+SV2 implementation notes:
+
+- Only the Mining protocol and Extended Channels are implemented.
+- Standard Channels and Standard share submissions are rejected.
+- `UpdateChannel` currently returns an error instead of changing vardiff or target policy.
+- SV2 uses the configured V1 `extranonce2_size` unchanged. Extended Channel requests whose `min_extranonce_size` exceeds that value are rejected.
+- Solved SV2 candidates use the same `submitblock` and reward-confirmation path as V1.
+- SV2 share deduplication uses `channel_id + job_id + nonce + ntime + extranonce + resolved version`; `sequence_number` is not treated as proof-of-work uniqueness.
+- SV2 connection, handshake, setup, channel, submit, unsupported-message, and block-found counters are exposed through `/api/v1/summary` and `/metrics`.
+
+### Environment Variable Overrides
+
+The following settings can be overridden with environment variables:
+
+```bash
+STRATUMBEE_NETWORK
+STRATUMBEE_RPC_URL
+STRATUMBEE_RPC_USER
+STRATUMBEE_RPC_PASS
+STRATUMBEE_PAYOUT_ADDRESS
+STRATUMBEE_PAYOUT_SCRIPT_HEX
+STRATUMBEE_P2P_FAST_PEER
+STRATUMBEE_AUTH_TOKEN
+```
+
+Typical usage:
+
+```bash
+export STRATUMBEE_RPC_URL=http://127.0.0.1:8332
+export STRATUMBEE_RPC_USER=bitcoinrpc
+export STRATUMBEE_RPC_PASS=replace-with-bitcoin-core-rpc-password
+export STRATUMBEE_PAYOUT_ADDRESS=bc1qreplace-with-your-mainnet-payout-address
+```
+
+## Miner Connection
+
+Miner endpoint:
+
+```text
+stratum+tcp://YOUR_HOST:3333
+```
+
+Rules:
+
+- Payouts always go to `mining.payout_address` or `mining.payout_script_hex`.
+- Miner usernames do not change the payout destination.
+- If `stratum.auth_token` is not set, `mining.authorize` usually succeeds.
+- If `stratum.auth_token` is set, miners must pass that token in the password field.
+- The dashboard identifies miners by `user_agent + session suffix`, not by Bitcoin address.
+
+## Supported Stratum Behavior
+
+Implemented methods:
+
+- `mining.subscribe`
+- `mining.extranonce.subscribe`
+- `mining.authorize`
+- `mining.submit`
+- `mining.suggest_difficulty`
+- `mining.configure`
+- `mining.get_version`
+- `mining.ping`
+
+Additional notes:
+
+- `mining.configure` supports version rolling and caps the negotiated mask at `1fffe000`.
+- `mining.extranonce.subscribe` is accepted for miner compatibility; extranonce values are fixed for each session and StratumBee does not send `mining.set_extranonce`.
+- Share deduplication uses `job_id + nonce + ntime + extranonce2 + version`.
+- Stale shares are classified as new-block switch, expired job, or short reconnect cases.
+
+## Dashboard and API
+
+When `api.enabled = true`, StratumBee starts a read-only dashboard and JSON API on `127.0.0.1:8080` by default.
+
+### Page Routes
+
+- `/`: built-in dashboard
+- `/health`: active health endpoint; returns `503` when RPC is unavailable, the latest successful GBT processing is older than 180 seconds, the template is not ready, or the template height no longer matches the Core tip (apart from the one-height `p2p_fast` transition)
+
+### JSON Endpoints
+
+| Path | Description |
+| --- | --- |
+| `/api/stats` | Basic stats, template state, and estimated hashrate |
+| `/api/workers` | Simplified worker list |
+| `/api/v1/summary` | Summary metrics, submission path state, and best share |
+| `/api/v1/miners` | Full miner state |
+| `/api/v1/blocks` | Recent block submission results, confirmations, active-chain state, and reward maturity |
+| `/api/v1/events` | Recent share events from the last 30 minutes |
+| `/api/v1/network` | Network data from `getmininginfo` |
+| `/api/v1/template` | Current template details |
+| `/api/v1/mempool` | Mempool data from `getmempoolinfo` |
+| `/api/v1/latency` | One-shot TCP RTT samples for currently connected miners |
+| `/metrics` | Prometheus-compatible text metrics |
+
+Notes:
+
+- All API endpoints are read-only.
+- CORS is currently fully open. Keep `api.bind` on `127.0.0.1` unless you know exactly how you want to expose it.
+- If you need external access, place it behind your own reverse proxy.
+- `submitted` and `duplicate` describe only the Bitcoin Core submission result. Check `reward_status`, `confirmations`, and `in_active_chain` before treating a block as a reward.
+- `total_blocks` now counts only `matured` rewards. Summary and metrics also expose `accepted_blocks`, `confirmed_blocks`, and `matured_blocks`; Prometheus names are prefixed with `stratumbee_`.
+- Alert at minimum on non-200 `/health`, `stratumbee_submitblock_rejected_total`, `stratumbee_submitblock_rpc_fail_total`, stale template height, zero connected miners during expected mining time, and rising `stratumbee_sv2_handshake_failures_total` or `stratumbee_sv2_unsupported_messages_total`.
+
+## Docker
+
+The repository includes [`Dockerfile`](Dockerfile), [`.dockerignore`](.dockerignore), [`docker-compose.yml`](docker-compose.yml), and [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
+
+Start with:
+
+```bash
+docker compose up -d --build
+```
+
+Current container setup:
+
+- Multi-stage `Dockerfile`
+- Build stage based on `rust:1.85-bookworm`
+- Runtime stage based on `debian:bookworm-slim`
+- `cargo build --release --locked --bin stratumbee` in the build stage
+- `config/` and `assets/` copied into the runtime image
+- Runtime process runs as the unprivileged `stratumbee` user
+- Ports `3333`, `3334`, and `8080` exposed
+- `network_mode: host` in the Compose example
+- `./config` mounted to `/opt/stratumbee/config`
+- Runtime settings are read from `/opt/stratumbee/config/stratumbee.toml`; edit `config/stratumbee.toml` before deployment
+
+Image workflow:
+
+- [`.github/workflows/docker.yml`](.github/workflows/docker.yml) runs manually via `workflow_dispatch`
+- Images are pushed to `ghcr.io/<owner>/<repo>`
+- The default tags are `latest` and the commit SHA
+- The target platform is `linux/amd64`
+
+The provided Compose file is mainly aimed at Linux hosts. Docker Desktop users will likely need to adjust networking.
+
+## systemd
+
+See [`deploy/systemd/stratumbee.service`](deploy/systemd/stratumbee.service).
+
+The service template assumes:
+
+- Working directory: `/opt/stratumbee`
+- Config file: `/opt/stratumbee/config/stratumbee.toml`
+- Optional env file: `/opt/stratumbee/config/stratumbee.env`
+- Runtime user: `stratumbee:stratumbee`
+
+Before deployment, make sure:
+
+- The `stratumbee` user and group exist
+- The binary is installed at `/usr/local/bin/stratumbee`
+- The config file is already in place
+
+## Repository Layout
+
+| Path | Description |
+| --- | --- |
+| `src/main.rs` | Entry point, configuration loading, and service startup |
+| `src/config.rs` | Strict TOML loading, environment overrides, and config validation |
+| `src/block_monitor.rs` | Active-chain confirmation and coinbase maturity tracking for submitted blocks |
+| `src/template.rs` | GBT, longpoll, ZMQ, fast empty templates, coinbase assembly, and `submitblock` |
+| `src/stratum.rs` | Stratum V1 sessions, notify flow, submit handling, version rolling, and vardiff |
+| `src/share.rs` | Local share and block validation plus full block assembly |
+| `src/metrics.rs` | In-memory metrics, share events, and block history |
+| `src/api.rs` | Dashboard and read-only JSON API |
+| `src/p2p.rs` | Bitcoin P2P fast block announcement client |
+| `src/rpc.rs` | Bitcoin Core RPC and longpoll client |
+| `src/hash.rs` | Hashing and merkle helpers |
+| `src/vardiff.rs` | Vardiff controller |
+| `assets/dashboard.html` | Single-file dashboard |
+| `config/stratumbee.toml` | Sample configuration |
+| `Cargo.lock` | Locked dependency graph for `--locked` builds |
+| `.dockerignore` | Container build context exclusions |
+| `Dockerfile` | Container image build |
+| `docker-compose.yml` | Container deployment example |
+| `.github/workflows/docker.yml` | Manual GHCR image build and push workflow |
+| `deploy/systemd/stratumbee.service` | systemd unit template |
+
+## Known Limits
+
+- Metrics and events live only in memory and are lost on restart
+- Submitted block confirmation tracking is also in memory and resumes only for blocks found during the current process lifetime
+- TLS termination is not included; use a reverse proxy if you need public exposure
+- There is no miner account system and no payout accounting
+- The deployment model is currently centered on a single node and a single payout destination
+- `p2p_fast_peer` only helps deliver early clean jobs; the final transaction set and fees still come from the next GBT template
+
+## License
+
+MIT

@@ -1,0 +1,12 @@
+services:
+  stratumbee:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stratumbee:local
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./config:/opt/stratumbee/config
+    environment:
+      RUST_LOG: info
